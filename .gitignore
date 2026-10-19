@@ -41,3 +41,6 @@ __screenshots__/
 .env.*
 !.env.example
 uploads/
+
+# 本地工作区数据
+.workbuddy/
