@@ -1,15 +1,15 @@
 <script setup>
 import { ref } from 'vue'
 import AnnouncementPanel from '@/components/AnnouncementPanel.vue'
+import NewsPanel from '@/components/NewsPanel.vue'
 
 const tabs = [
   { key: 'news', label: '新闻' },
   { key: 'announcements', label: '公告' },
 ]
 
-// 默认停在“公告”，因为 B 同学已完成公告面板；A 同学接入 NewsPanel 后，
-// 这里把占位替换为 <NewsPanel />，并把默认值改回 'news' 即可。
-const activeTab = ref('announcements')
+// 新闻、公告两个面板都已接入，默认停在「新闻」
+const activeTab = ref('news')
 </script>
 
 <template>
@@ -30,13 +30,9 @@ const activeTab = ref('announcements')
     </div>
 
     <!-- 新闻：由 A 同学接入 NewsPanel.vue，完成后替换为 <NewsPanel /> -->
+        
     <section v-show="activeTab === 'news'" class="tabpane">
-      <div class="pending">
-        <p class="pending__title">新闻列表待接入</p>
-        <p class="pending__text">
-          由 A 同学完成 <code>NewsPanel.vue</code> 与 <code>news.js</code> 后在此挂载。
-        </p>
-      </div>
+      <NewsPanel />
     </section>
 
     <!-- 公告：B 同学已完成 -->
