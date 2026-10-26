@@ -70,8 +70,10 @@ watch(() => route.params.id, load, { immediate: true })
           @error="(e) => (e.target.style.display = 'none')"
         />
 
-        
-        <div class="article__body">{{ detail.content || '（暂无正文）' }}</div>
+        <!-- 正文：后端 content 字段存的是富文本 HTML，用 v-html 渲染。
+             内容仅由管理后台录入，属于可信来源；若将来开放用户投稿，
+             必须先做 HTML 清洗（如 DOMPurify）再渲染，防止 XSS。 -->
+        <div class="article__body" v-html="detail.content || '（暂无正文）'"></div>
       </article>
     </RequestState>
 
@@ -145,6 +147,5 @@ watch(() => route.params.id, load, { immediate: true })
   line-height: 1.8;
   color: var(--c-text-1);
   overflow-wrap: anywhere;
-  white-space: pre-wrap;
 }
 </style>
