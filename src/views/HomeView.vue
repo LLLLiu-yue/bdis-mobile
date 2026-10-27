@@ -1,41 +1,103 @@
 <script setup>
+import { ref } from 'vue'
+import { RouterLink } from 'vue-router'
+import RequestState from '@/components/RequestState.vue'
+import { getBanners, normalizeBanners } from '@/api/home.js'
+import { getLabInfo } from '@/api/lab.js'
+import { getNewsList } from '@/api/news.js'
+
 const quickLinks = [
   { to: '/updates', title: '动态', desc: '新闻与公告' },
   { to: '/projects', title: '项目', desc: '在研与招募' },
-  { to: '/resources', title: '资料', desc: '课程与工具' },
-  { to: '/search', title: '搜索', desc: '全站检索' },
+  { to: '/competitions', title: '竞赛', desc: '组队与招募' },
+  { to: '/about', title: '关于', desc: '实验室与团队' },
 ]
 
-// 骨架阶段的临时自检清单：联调开始后整块删除
-const routeChecklist = [
-  { to: '/', label: '/' },
-  { to: '/updates', label: '/updates' },
-  { to: '/news/1', label: '/news/:id' },
-  { to: '/announcements/1', label: '/announcements/:id' },
-  { to: '/projects', label: '/projects' },
-  { to: '/projects/1', label: '/projects/:id' },
-  { to: '/competitions', label: '/competitions' },
-  { to: '/competitions/1', label: '/competitions/:id' },
-  { to: '/resources', label: '/resources' },
-  { to: '/about', label: '/about' },
-  { to: '/join', label: '/join' },
-  { to: '/search', label: '/search' },
-  { to: '/growth', label: '/growth' },
-  { to: '/no-such-page', label: '/:pathMatch(.*)*' },
-]
+// —— 首页轮播（/api/banner，只做展示，不放 buttonLink 按钮） ——
+const banners = ref([])
+async function loadBanners() {
+  try {
+    banners.value = normalizeBanners(await getBanners())
+  } catch (e) {
+    // 轮播加载失败不阻塞首页其他区块，静默降级为不展示
+    banners.value = []
+  }
+}
+
+// —— 实验室信息：hero 标题与简介优先用后端数据，没给就用默认文案 ——
+const labName = ref('')
+const labIntro = ref('')
+async function loadLabInfo() {
+  try {
+    const data = await getLabInfo()
+    if (data) {
+      labName.value = data.name || ''
+      labIntro.value = data.introShort || ''
+    }
+  } catch (e) {
+    // 同上，失败保持默认文案
+  }
+}
+
+// —— 最新动态：取 3 条真实新闻，失败/为空则整块收起说明 ——
+const newsTop = ref([])
+const newsLoading = ref(false)
+async function loadNewsTop() {
+  newsLoading.value = true
+  try {
+    const data = await getNewsList(3)
+    const list = Array.isArray(data) ? data : Array.isArray(data?.list) ? data.list : []
+    newsTop.value = list.slice(0, 3)
+  } catch (e) {
+    newsTop.value = []
+  } finally {
+    newsLoading.value = false
+  }
+}
+
+function newsDate(item) {
+  return item.publishDate || item.publish_date || ''
+}
+
+function hideImage(e) {
+  e.target.style.display = 'none'
+}
+
+loadBanners()
+loadLabInfo()
+loadNewsTop()
 </script>
 
 <template>
   <div class="page">
     <section class="hero">
       <span class="hero__tag">BDIS</span>
-      <h2 class="hero__title">大数据智能工作室</h2>
-      <p class="hero__desc">
-        移动端骨架已经就位。实验室简介、主视觉与最新动态会在接口联调后陆续填充。
-      </p>
+      <h2 class="hero__title">{{ labName || '大数据智能工作室' }}</h2>
+      <p v-if="labIntro" class="hero__desc">{{ labIntro }}</p>
       <div class="hero__actions">
         <RouterLink class="btn hero__btn hero__btn--solid" to="/updates">看看动态</RouterLink>
         <RouterLink class="btn hero__btn hero__btn--outline" to="/about">了解我们</RouterLink>
+      </div>
+    </section>
+
+    <!-- 轮播：来自 /api/banner，横向滑动查看；无数据时整块不渲染 -->
+    <section v-if="banners.length" class="section" aria-label="轮播图">
+      <div class="banner-track" role="group">
+        <article v-for="banner in banners" :key="banner.id" class="banner">
+          <img
+            v-if="banner.imageUrl"
+            :src="banner.imageUrl"
+            class="banner__img"
+            alt=""
+            referrerpolicy="no-referrer"
+            @error="hideImage"
+          />
+          <div class="banner__body">
+            <h3 class="banner__title">{{ banner.title }}</h3>
+            <p v-if="banner.subtitle" class="banner__subtitle">{{ banner.subtitle }}</p>
+            <p v-if="banner.description" class="banner__desc">{{ banner.description }}</p>
+          </div>
+        </article>
       </div>
     </section>
 
@@ -57,36 +119,27 @@ const routeChecklist = [
     <section class="section">
       <div class="section__head">
         <h2 class="section__title">最新动态</h2>
-        <span class="section__aside">接口接入后展示</span>
+        <RouterLink class="section__aside" to="/updates">查看全部 →</RouterLink>
       </div>
-      <div class="card">
-        <div class="ghost-list" aria-hidden="true">
-          <div v-for="n in 3" :key="n" class="ghost-row">
-            <span class="ghost-thumb" />
-            <span class="ghost-body">
-              <span class="skeleton-line" :style="{ width: n === 2 ? '72%' : '88%' }" />
-              <span class="skeleton-line skeleton-line--soft" :style="{ width: '46%' }" />
-            </span>
-          </div>
-        </div>
-        <p class="hint">新闻与公告将在联调阶段替换为真实内容，当前不展示示例数据。</p>
-      </div>
-    </section>
 
-    <details class="card route-check">
-      <summary class="route-check__summary">
-        <span class="route-check__title">骨架阶段：全站路由自检</span>
-        <span class="pill pill--info">14 项</span>
-      </summary>
-      <p class="route-check__desc">
-        逐一打开确认页面、底部导航高亮与返回按钮；联调开始后移除本卡片。
-      </p>
-      <ul class="route-check__list">
-        <li v-for="item in routeChecklist" :key="item.label">
-          <RouterLink class="route-check__link" :to="item.to">{{ item.label }}</RouterLink>
+      <div v-if="newsLoading" class="card">
+        <span class="skeleton-line" style="width: 86%" />
+        <span class="skeleton-line skeleton-line--soft" style="width: 62%" />
+      </div>
+
+      <ul v-else-if="newsTop.length" class="card news-top">
+        <li v-for="item in newsTop" :key="item.id" class="news-top__row">
+          <RouterLink :to="`/news/${item.id}`" class="news-top__link">
+            <span class="news-top__title">{{ item.title }}</span>
+            <span class="news-top__date">{{ newsDate(item) }}</span>
+          </RouterLink>
         </li>
       </ul>
-    </details>
+
+      <div v-else class="card">
+        <p class="hint">暂无最新动态，去「动态」页看看新闻与公告吧。</p>
+      </div>
+    </section>
   </div>
 </template>
 
@@ -169,6 +222,61 @@ const routeChecklist = [
   border-color: rgba(255, 255, 255, 0.5);
 }
 
+/* 轮播：scroll-snap 横向滑动，不写定时器，滚到哪算哪 */
+.banner-track {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  padding-bottom: 4px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.banner {
+  flex: 0 0 100%;
+  scroll-snap-align: start;
+  overflow: hidden;
+  background: var(--c-surface);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+}
+
+.banner__img {
+  display: block;
+  width: 100%;
+  max-height: 170px;
+  object-fit: cover;
+}
+
+.banner__body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 14px 14px;
+}
+
+.banner__title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.banner__subtitle {
+  margin: 0;
+  font-size: 12px;
+  color: var(--c-primary);
+  overflow-wrap: anywhere;
+}
+
+.banner__desc {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--c-text-3);
+  overflow-wrap: anywhere;
+}
+
 .tile-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -208,66 +316,51 @@ const routeChecklist = [
   color: var(--c-primary);
 }
 
-.hint {
-  margin-top: 12px;
-  font-size: 12px;
-  line-height: 1.6;
-  color: var(--c-text-3);
-}
-
-.route-check {
-  padding: 0;
-}
-
-.route-check__summary {
+.news-top {
   display: flex;
-  gap: 8px;
-  align-items: center;
-  justify-content: space-between;
-  min-height: 52px;
-  padding: 8px 16px;
-  cursor: pointer;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
   list-style: none;
 }
 
-.route-check__summary::-webkit-details-marker {
-  display: none;
+.news-top__row + .news-top__row {
+  border-top: 1px solid var(--c-border);
 }
 
-.route-check__title {
+.news-top__link {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 48px;
+  padding: 8px 0;
+  color: inherit;
+  text-decoration: none;
+}
+
+.news-top__title {
+  flex: 1 1 auto;
+  min-width: 0;
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 500;
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
-.route-check__desc {
-  padding: 0 16px 10px;
-  font-size: 12px;
-  line-height: 1.6;
+.news-top__date {
+  flex: 0 0 auto;
+  font-size: 11px;
   color: var(--c-text-3);
 }
 
-.route-check__list {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
-  padding: 0 16px 16px;
-}
-
-.route-check__link {
-  display: flex;
-  align-items: center;
-  min-height: 40px;
-  padding: 0 10px;
-  overflow: hidden;
+.hint {
+  margin: 0;
   font-size: 12px;
-  color: var(--c-text-2);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  background: var(--c-surface-soft);
-  border-radius: 8px;
-}
-
-.route-check__link:active {
-  background: var(--c-primary-soft);
+  line-height: 1.6;
+  color: var(--c-text-3);
 }
 </style>
