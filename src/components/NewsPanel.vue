@@ -2,7 +2,7 @@
 import { ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import RequestState from '@/components/RequestState.vue'
-import { getNewsList } from '@/api/news.js'
+import { getNewsList, categoryText } from '@/api/news.js'
 
 // 与公告保持一致：每页条数常量化，避免魔法数字散落
 const PAGE_SIZE = 10
@@ -31,6 +31,11 @@ async function load() {
   }
 }
 
+// 封面加载失败（比如后端没同步图片）时把自己藏起来，不留裂图占位
+function hideImage(e) {
+  e.target.style.display = 'none'
+}
+
 // 首次加载
 load()
 </script>
@@ -43,18 +48,31 @@ load()
       :empty="items.length === 0"
       empty-title="暂无新闻"
       empty-text="工作室还没有发布新闻，过段时间再来看看吧"
+      :skeleton-rows="4"
       @retry="load"
     >
       <ul class="list">
         <li v-for="item in items" :key="item.id" class="row">
           <RouterLink :to="`/news/${item.id}`" class="row__link">
-            <div class="row__top">
-              <span class="date">
-                {{ item.publish_date || item.publishDate || item.create_time || '' }}
-              </span>
+            <div class="row__main">
+              <div class="row__top">
+                <span class="tag">{{ categoryText(item.category) }}</span>
+                <span class="date">{{ item.publishDate || item.publish_date || '' }}</span>
+              </div>
+              <h3 class="row__title">{{ item.title }}</h3>
+              <p v-if="item.summary" class="row__summary">{{ item.summary }}</p>
             </div>
-            <h3 class="row__title">{{ item.title }}</h3>
-            <p v-if="item.summary" class="row__summary">{{ item.summary }}</p>
+
+            <!-- 列表缩略图：后端字段 coverThumbUrl，路径形如 /api/uploads/xxx.jpg
+                 或 /static/news/news1.jpg，两种前缀都已在 vite 代理里配好 -->
+            <img
+              v-if="item.coverThumbUrl"
+              :src="item.coverThumbUrl"
+              class="row__cover"
+              alt=""
+              referrerpolicy="no-referrer"
+              @error="hideImage"
+            />
           </RouterLink>
         </li>
       </ul>
@@ -85,19 +103,38 @@ load()
 }
 
 .row__link {
-  display: block;
+  display: flex;
+  gap: 12px;
   min-width: 0;
   padding: 14px;
   color: inherit;
   text-decoration: none;
 }
 
+.row__main {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
 .row__top {
   display: flex;
-  align-items: center;
-  justify-content: flex-end;
   gap: 8px;
-  margin-bottom: 6px;
+  align-items: center;
+  justify-content: space-between;
+  min-width: 0;
+}
+
+.tag {
+  flex: 0 0 auto;
+  padding: 2px 9px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--c-primary);
+  background: var(--c-primary-soft);
 }
 
 .date {
@@ -118,7 +155,7 @@ load()
 }
 
 .row__summary {
-  margin: 6px 0 0;
+  margin: 0;
   font-size: 13px;
   line-height: 1.6;
   color: var(--c-text-3);
@@ -127,5 +164,14 @@ load()
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+}
+
+.row__cover {
+  flex: 0 0 68px;
+  width: 68px;
+  height: 68px;
+  object-fit: cover;
+  border-radius: var(--radius-md);
+  background: var(--c-surface-soft);
 }
 </style>

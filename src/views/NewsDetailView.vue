@@ -2,7 +2,7 @@
 import { ref, computed, watch } from 'vue'
 import { useRoute, RouterLink } from 'vue-router'
 import RequestState from '@/components/RequestState.vue'
-import { getNewsDetail } from '@/api/news.js'
+import { getNewsDetail, categoryText } from '@/api/news.js'
 
 const route = useRoute()
 // ID 全程保持字符串：雪花 ID 超过 2^53，转 Number 会丢精度导致查不到
@@ -12,6 +12,10 @@ const detail = ref(null)
 const loading = ref(false)
 const error = ref('')
 const notFound = ref(false)
+
+// 后端真实字段名是驼峰（publishDate / coverThumbUrl），蛇形写法只作兜底
+const publishDate = computed(() => detail.value?.publishDate || detail.value?.publish_date || '')
+const cover = computed(() => detail.value?.coverThumbUrl || detail.value?.cover_thumb_url || '')
 
 async function load() {
   // 离开详情页时路由参数会变成空，避免发一次无意义的请求
@@ -53,17 +57,15 @@ watch(() => route.params.id, load, { immediate: true })
     >
       <article v-if="detail" class="card article">
         <div class="article__meta">
-          <span class="tag">新闻</span>
-          <span class="date">
-            {{ detail.publish_date || detail.publishDate || detail.create_time || '' }}
-          </span>
+          <span class="tag">{{ categoryText(detail.category) }}</span>
+          <span class="date">{{ publishDate }}</span>
         </div>
         <h2 class="article__title">{{ detail.title }}</h2>
         <p v-if="detail.summary" class="article__summary">{{ detail.summary }}</p>
 
         <img
-          v-if="detail.cover_thumb_url"
-          :src="detail.cover_thumb_url"
+          v-if="cover"
+          :src="cover"
           class="cover"
           alt=""
           referrerpolicy="no-referrer"
