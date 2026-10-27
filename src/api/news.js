@@ -11,6 +11,21 @@
 
 import { getData } from './http.js'
 
+// 分类文案字典：线上真实取值有 activity / recruit / project_recruit。
+// 前端只做展示层的中文化，不影响查询逻辑
+const CATEGORY_TEXT = {
+  activity: '活动',
+  recruit: '招新',
+  project_recruit: '项目招募',
+  research: '科研',
+  award: '获奖',
+}
+
+export function categoryText(category) {
+  // 取不到时回退成“新闻”，避免把英文原始值直接丢给用户看
+  return CATEGORY_TEXT[category] || category || '新闻'
+}
+
 export function getNewsList(limit = 10) {
   return getData(`/api/news?limit=${limit}`)
 }
