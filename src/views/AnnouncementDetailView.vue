@@ -15,7 +15,13 @@ const loading = ref(false)
 const error = ref('')
 const notFound = ref(false)
 
+// 后端真实字段名是驼峰（publishDate / coverThumbUrl），蛇形写法只作兜底
+const cover = computed(() => detail.value?.coverThumbUrl || detail.value?.cover_thumb_url || '')
+
 async function load() {
+  // 离开详情页时路由参数会变成空，避免发一次无意义的请求
+  if (!id.value) return
+
   loading.value = true
   error.value = ''
   notFound.value = false
@@ -59,16 +65,18 @@ watch(() => route.params.id, load, { immediate: true })
         <p v-if="detail.summary" class="article__summary">{{ detail.summary }}</p>
 
         <img
-          v-if="detail.cover_thumb_url"
-          :src="detail.cover_thumb_url"
+          v-if="cover"
+          :src="cover"
           class="cover"
           alt=""
           referrerpolicy="no-referrer"
           @error="(e) => (e.target.style.display = 'none')"
         />
 
-        <!-- 正文暂按纯文本展示，HTML 清洗方案确认后再处理 -->
-        <div class="article__body">{{ detail.content || '（暂无正文）' }}</div>
+        <!-- 正文：后端 content 字段存的是富文本 HTML，用 v-html 渲染。
+             内容仅由管理后台录入，属于可信来源；若将来开放用户投稿，
+             必须先做 HTML 清洗（如 DOMPurify）再渲染，防止 XSS。 -->
+        <div class="article__body" v-html="detail.content || '（暂无正文）'"></div>
       </article>
     </RequestState>
 
@@ -132,12 +140,12 @@ watch(() => route.params.id, load, { immediate: true })
   border-radius: var(--radius-md);
 }
 
+/* 正文已是 HTML，<p> 自带排版；保留 pre-wrap 会多出空白行 */
 .article__body {
   margin-top: 6px;
   font-size: 15px;
   line-height: 1.8;
   color: var(--c-text-1);
   overflow-wrap: anywhere;
-  white-space: pre-wrap;
 }
 </style>
